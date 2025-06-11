@@ -14,6 +14,10 @@ JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
 # MCP服务器配置
 MCP_URL = os.getenv('MCP_URL', 'http://localhost:3000/sse')
 
+# 连接管理配置
+KEEPALIVE_INTERVAL = int(os.getenv('KEEPALIVE_INTERVAL', 300))  # 保活检查间隔（秒）
+CONNECTION_TIMEOUT = int(os.getenv('CONNECTION_TIMEOUT', 5))   # 连接超时时间（秒）
+
 # 服务器配置
 PORT = int(os.getenv('PORT', 5000))
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'

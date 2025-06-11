@@ -150,10 +150,22 @@ async def list_tools():
     return jsonify(response_data), status_code
 
 @api_bp.route('/health', methods=['GET'])
-def health_check():
+async def health_check():
     """健康检查端点"""
+    mcp_connected = False
+    available_tools_count = 0
+    
+    if mcp_client:
+        try:
+            # 使用更精确的连接健康检查
+            mcp_connected = await mcp_client._check_connection_health()
+            available_tools_count = mcp_client.tools_count
+        except Exception as e:
+            logger.warning(f"健康检查时发生错误: {str(e)}")
+            mcp_connected = False
+    
     return jsonify({
         "status": "healthy",
-        "mcp_connected": mcp_client.is_connected if mcp_client else False,
-        "available_tools_count": mcp_client.tools_count if mcp_client else 0
+        "mcp_connected": mcp_connected,
+        "available_tools_count": available_tools_count
     }) 
