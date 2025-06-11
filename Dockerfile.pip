@@ -20,20 +20,6 @@ RUN pip install --upgrade pip
 # 设置工作目录
 WORKDIR /app
 
-# 首先复制依赖文件
-COPY pyproject.toml ./
-
-# 从pyproject.toml提取依赖并创建requirements.txt
-RUN pip install toml && \
-    python -c "
-import toml
-data = toml.load('pyproject.toml')
-deps = data['project']['dependencies']
-with open('requirements.txt', 'w') as f:
-    for dep in deps:
-        f.write(dep + '\n')
-"
-
 # 安装Python依赖
 RUN pip install -r requirements.txt
 
