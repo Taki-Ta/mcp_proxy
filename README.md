@@ -72,14 +72,20 @@ LOG_LEVEL=INFO
 
 ### 2. 📦 安装依赖
 
-使用uv（推荐）：
+#### 🌍 使用pip（中国大陆用户推荐）：
 ```bash
-uv sync
+# 配置国内镜像源加速（可选）
+pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple/
+pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn
+
+# 安装依赖
+pip install -r requirements.txt
+pip install -e .
 ```
 
-或使用pip：
+#### ⚡ 使用uv（海外用户推荐）：
 ```bash
-pip install -e .
+uv sync
 ```
 
 ### 3. 🎫 生成JWT令牌
@@ -168,18 +174,78 @@ python -c "from mcp_proxy import main; main()"
 ## 🐳 Docker部署
 
 ### 🏗️ 构建镜像
+
+我们提供两种Dockerfile供你选择：
+
+#### 🌍 使用pip构建（推荐中国大陆用户）
 ```bash
-docker build -t mcp-proxy .
+# 使用pip版本的Dockerfile，包含国内镜像源加速
+docker build -f Dockerfile.pip -t mcp-proxy:pip .
+```
+
+#### ⚡ 使用uv构建（海外用户推荐）
+```bash
+# 使用原版的uv Dockerfile
+docker build -f Dockerfile -t mcp-proxy:uv .
 ```
 
 ### 🚀 运行容器
+
+#### 运行pip版本
 ```bash
 docker run -d \
   --name mcp-proxy \
   -p 5000:5000 \
   -e JWT_SECRET=your-secret-key \
   -e MCP_URL=http://your-mcp-server:3000/sse \
-  mcp-proxy
+  mcp-proxy:pip
+```
+
+#### 运行uv版本
+```bash
+docker run -d \
+  --name mcp-proxy \
+  -p 5000:5000 \
+  -e JWT_SECRET=your-secret-key \
+  -e MCP_URL=http://your-mcp-server:3000/sse \
+  mcp-proxy:uv
+```
+
+### 🐙 使用Docker Compose
+
+我们还提供了docker-compose配置，让你可以更方便地启动服务：
+
+#### 启动pip版本服务
+```bash
+docker-compose up -d mcp-proxy-pip
+# 服务将在 http://localhost:5000 启动
+```
+
+#### 启动uv版本服务
+```bash
+docker-compose up -d mcp-proxy-uv
+# 服务将在 http://localhost:5001 启动
+```
+
+#### 同时启动两个版本进行对比测试
+```bash
+docker-compose up -d
+# pip版本: http://localhost:5000
+# uv版本: http://localhost:5001
+```
+
+#### 查看日志
+```bash
+# 查看pip版本日志
+docker-compose logs -f mcp-proxy-pip
+
+# 查看uv版本日志
+docker-compose logs -f mcp-proxy-uv
+```
+
+#### 停止服务
+```bash
+docker-compose down
 ```
 
 ## 👨‍💻 开发指南
