@@ -86,25 +86,68 @@ async def call_tool():
 @api_bp.route('/tools/list', methods=['GET'])
 async def list_tools():
     """列出所有可用的MCP工具"""
+    start_time = datetime.now(timezone.utc)
+    request_data = {}
+    response_data = {}
+    status_code = 200
+    
     try:
         # 验证JWT令牌
         user_payload = validate_request_auth()
+        logger.info(f"用户 {user_payload.get('user_id', 'unknown')} 请求工具列表")
         
         # 获取工具列表
         response = await mcp_client.list_tools()
+        logger.info(f"从MCP服务器获取到 {len(response.tools)} 个工具")
         
         # 序列化工具列表
-        tools_data = [serialize_tool(tool) for tool in response.tools]
-        return jsonify({"tools": tools_data})
+        tools_data = []
+        for i, tool in enumerate(response.tools):
+            try:
+                serialized_tool = serialize_tool(tool)
+                tools_data.append(serialized_tool)
+                logger.debug(f"成功序列化工具 {i+1}: {serialized_tool.get('name', 'unknown')}")
+            except Exception as e:
+                logger.error(f"序列化工具 {i+1} 时出错: {str(e)}")
+                # 添加错误工具的占位符
+                tools_data.append({
+                    "name": f"tool_{i+1}",
+                    "description": f"序列化失败: {str(e)}",
+                    "error": True
+                })
+        
+        response_data = {"tools": tools_data}
+        logger.info(f"成功返回 {len(tools_data)} 个工具的信息")
         
     except APIError as e:
+        status_code = e.status_code
         response_data = {
             "error": {
                 "message": e.message,
                 "code": e.status_code
             }
         }
-        return jsonify(response_data), e.status_code
+        logger.error(f"API错误: {e.message}")
+        
+    except Exception as e:
+        status_code = 500
+        response_data = {
+            "error": {
+                "message": "获取工具列表失败",
+                "code": 500
+            }
+        }
+        logger.error(f"获取工具列表时发生未预期错误: {str(e)}", exc_info=True)
+    
+    finally:
+        # 记录日志
+        end_time = datetime.now(timezone.utc)
+        execution_time = (end_time - start_time).total_seconds()
+        remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        user_agent = request.headers.get('User-Agent')
+        log_request_response(request_data, response_data, status_code, execution_time, remote_addr, user_agent)
+    
+    return jsonify(response_data), status_code
 
 @api_bp.route('/health', methods=['GET'])
 def health_check():

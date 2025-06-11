@@ -63,12 +63,55 @@ def serialize_tool(tool) -> Dict[str, Any]:
     Returns:
         序列化后的工具信息
     """
-    if hasattr(tool, 'to_dict'):
-        return tool.to_dict()
-    elif hasattr(tool, '__dict__'):
-        return {key: getattr(tool, key) for key in dir(tool) if not key.startswith('_')}
-    else:
-        return str(tool)
+    try:
+        # 优先尝试使用to_dict方法
+        if hasattr(tool, 'to_dict') and callable(getattr(tool, 'to_dict')):
+            return tool.to_dict()
+        
+        # 如果是Tool对象，手动序列化其属性
+        if hasattr(tool, 'name'):
+            result = {}
+            
+            # 提取基本属性
+            if hasattr(tool, 'name'):
+                result['name'] = tool.name
+            if hasattr(tool, 'description'):
+                result['description'] = tool.description
+            if hasattr(tool, 'inputSchema'):
+                result['inputSchema'] = tool.inputSchema
+            if hasattr(tool, 'annotations'):
+                result['annotations'] = tool.annotations
+                
+            return result
+        
+        # 如果有__dict__属性，使用字典形式
+        elif hasattr(tool, '__dict__'):
+            result = {}
+            for key, value in tool.__dict__.items():
+                if not key.startswith('_'):
+                    # 递归序列化复杂对象
+                    if hasattr(value, '__dict__') and not isinstance(value, (str, int, float, bool, list, dict)):
+                        result[key] = serialize_tool(value)
+                    else:
+                        result[key] = value
+            return result
+        
+        # 如果是字典，直接返回
+        elif isinstance(tool, dict):
+            return tool
+        
+        # 其他情况转换为字符串
+        else:
+            return {"name": str(tool), "description": "Unknown tool type"}
+            
+    except Exception as e:
+        logger.warning(f"序列化工具时发生错误: {str(e)}")
+        # 容错处理：返回基本信息
+        return {
+            "name": getattr(tool, 'name', 'unknown'),
+            "description": getattr(tool, 'description', f'Error serializing tool: {str(e)}'),
+            "error": str(e)
+        }
 
 def log_request_response(request_data: dict, response_data: dict, status_code: int, 
                         execution_time: float, remote_addr: str = None, user_agent: str = None):
