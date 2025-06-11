@@ -6,8 +6,14 @@ JWT令牌生成脚本
 
 import jwt
 import os
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
+
+# 支持直接运行和模块运行
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv():
+        pass
 
 # 加载环境变量
 load_dotenv()
@@ -21,16 +27,19 @@ def generate_token(user_id: str = "test_user", expires_in_hours: int = 24):
     
     Returns:
         str: JWT令牌
+        
+    Note:
+        exp字段是必须的，API会强制验证过期时间
     """
     secret = os.getenv('JWT_SECRET', 'default-secret-key')
     algorithm = os.getenv('JWT_ALGORITHM', 'HS256')
     
-    # 构建payload
-    now = datetime.utcnow()
+    # 构建payload - exp字段是必须的
+    now = datetime.now(timezone.utc)
     payload = {
         'user_id': user_id,
         'iat': now,  # 签发时间
-        'exp': now + timedelta(hours=expires_in_hours),  # 过期时间
+        'exp': now + timedelta(hours=expires_in_hours),  # 过期时间（必须）
         'iss': 'mcp-proxy',  # 签发者
     }
     

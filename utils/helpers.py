@@ -1,0 +1,95 @@
+"""
+数据处理工具模块
+"""
+import json
+import logging
+from datetime import datetime, timezone
+from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
+
+def serialize_mcp_content(obj) -> Any:
+    """
+    序列化MCP响应内容，确保可以JSON序列化
+    
+    Args:
+        obj: MCP响应对象
+        
+    Returns:
+        可序列化的数据
+    """
+    if hasattr(obj, 'content'):
+        if isinstance(obj.content, list):
+            serialized_list = [serialize_mcp_content(item) for item in obj.content]
+            # 如果列表只有一个元素且是JSON字符串，尝试解析它
+            if len(serialized_list) == 1 and isinstance(serialized_list[0], str):
+                try:
+                    return json.loads(serialized_list[0])
+                except (json.JSONDecodeError, ValueError):
+                    return serialized_list[0]
+            return serialized_list
+        elif hasattr(obj.content, 'text'):
+            text = obj.content.text
+            # 尝试解析JSON字符串
+            try:
+                return json.loads(text)
+            except (json.JSONDecodeError, ValueError):
+                return text
+        elif hasattr(obj.content, 'to_dict'):
+            return obj.content.to_dict()
+        else:
+            return str(obj.content)
+    elif hasattr(obj, 'text'):
+        text = obj.text
+        # 尝试解析JSON字符串
+        try:
+            return json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return text
+    elif hasattr(obj, 'to_dict'):
+        return obj.to_dict()
+    elif isinstance(obj, (dict, list, str, int, float, bool)) or obj is None:
+        return obj
+    else:
+        return str(obj)
+
+def serialize_tool(tool) -> Dict[str, Any]:
+    """
+    序列化MCP工具对象
+    
+    Args:
+        tool: MCP工具对象
+        
+    Returns:
+        序列化后的工具信息
+    """
+    if hasattr(tool, 'to_dict'):
+        return tool.to_dict()
+    elif hasattr(tool, '__dict__'):
+        return {key: getattr(tool, key) for key in dir(tool) if not key.startswith('_')}
+    else:
+        return str(tool)
+
+def log_request_response(request_data: dict, response_data: dict, status_code: int, 
+                        execution_time: float, remote_addr: str = None, user_agent: str = None):
+    """
+    记录请求和响应日志
+    
+    Args:
+        request_data: 请求数据
+        response_data: 响应数据  
+        status_code: HTTP状态码
+        execution_time: 执行时间（秒）
+        remote_addr: 客户端地址
+        user_agent: 用户代理
+    """
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "request": request_data,
+        "response": response_data,
+        "status_code": status_code,
+        "execution_time_ms": round(execution_time * 1000, 2),
+        "remote_addr": remote_addr,
+        "user_agent": user_agent
+    }
+    logger.info(json.dumps(log_entry, ensure_ascii=False)) 
