@@ -20,6 +20,8 @@ RUN pip install --upgrade pip
 # 设置工作目录
 WORKDIR /app
 
+COPY requirements.txt ./
+
 # 安装Python依赖
 RUN pip install -r requirements.txt
 
