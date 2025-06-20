@@ -3,21 +3,35 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-proxy"
+name = "mcp-proxy-to-api"
 version = "0.1.0"
-description = "MCP Proxy API Server"
+description = "Proxy sse mcp to restful api"
+authors = [
+    {name="taki", email="taki184344812@email.com"},
+]
 readme = "README.md"
 requires-python = ">=3.12"
+license = {text = "MIT"}
 dependencies = [
     "quart>=0.19.0",
     "PyJWT>=2.10.1",
     "python-dotenv>=1.0.0",
-    "mcp>=1.9.4",
-    "asyncio>=3.4.3",
+    "mcp>=1.0.0",
 ]
 
 [project.scripts]
 mcp-proxy = "mcp_proxy.main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["mcp_proxy"]
+packages = ["mcp_proxy"]    
+
+[project.urls]
+Homepage = "https://github.com/Taki-Ta/mcp_proxy"
+Repository = "https://github.com/Taki-Ta/mcp_proxy"
+Issues = "https://github.com/Taki-Ta/mcp_proxy/issues"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+]

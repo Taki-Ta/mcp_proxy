@@ -2,9 +2,9 @@
 MCP Proxy API Package
 """
 
-__version__ = "1.0.0"
-__author__ = "MCP Proxy Team"
-__description__ = "MCP (Model Context Protocol) Proxy API Server"
+__version__ = "0.1.0"
+__author__ = "Taki"
+__description__ = "Proxy sse mcp to restful api"
 
 from .app import create_app, main
 from .core import MCPClient
