@@ -33,6 +33,7 @@ mcp_proxy/
 - **🔧 MCP工具调用**: 代理调用远程MCP服务器的工具
 - **📋 工具列表获取**: 获取所有可用的MCP工具信息
 - **💚 健康检查**: 监控服务和MCP连接状态
+- **🌐 多服务器支持**: 同时连接和管理多个MCP服务器
 
 ### 🔒 安全特性
 - **🎫 JWT认证**: 支持Header和URL参数两种认证方式
@@ -43,6 +44,30 @@ mcp_proxy/
 - **📊 结构化日志**: JSON格式的请求响应日志
 - **⏱️ 执行时间记录**: 详细的性能监控
 - **🚨 错误处理**: 完善的异常处理和错误响应
+
+## 🌐 多服务器配置
+
+### 🎯 配置方式
+本系统支持两种MCP服务器配置方式：
+
+#### 📦 单服务器配置（向后兼容）
+```bash
+MCP_URL=http://localhost:3000/sse
+```
+
+#### 🚀 多服务器配置（推荐）
+```bash
+MCP_URLS=http://10.10.1.105:8999/sse,http://10.10.1.105:8005/sse,http://another-server:9000/sse
+```
+
+### ✨ 多服务器特性
+- **⚖️ 工具分布**: 系统会自动发现每个服务器提供的工具
+- **📊 状态监控**: 实时监控所有服务器的连接状态和可用工具
+
+### 🛠️ 使用建议
+1. **开发环境**: 可以使用单服务器配置
+2. **生产环境**: 建议配置多个服务器以提高可用性
+3. **混合部署**: 不同服务器可以提供不同类型的工具
 
 ## 🚀 快速开始
 
@@ -60,7 +85,12 @@ JWT_SECRET=your-secret-key-here
 JWT_ALGORITHM=HS256
 
 # 🔗 MCP服务器配置
+# 单个服务器配置（向后兼容）
 MCP_URL=http://localhost:3000/sse
+
+# 多服务器配置（推荐）
+# 使用逗号分隔多个URL
+MCP_URLS=http://10.10.1.105:8999/sse,http://10.10.1.105:8005/sse
 
 # 🖥️ 服务器配置
 PORT=5000
@@ -135,19 +165,26 @@ python -c "from mcp_proxy import main; main()"
     "method": "tool_name",
     "args": {
       "param1": "value1"
-    }
+    },
+    "server": "http://10.10.1.105:8999/sse"  // 可选：指定优先服务器
   }
   ```
 
 #### 2. 📝 获取工具列表
 - **📍 路径**: `GET /tools/list`
 - **🔐 认证**: 必需
-- **📥 响应**: 返回所有可用的MCP工具信息
+- **🔍 查询参数**: `?server=URL` (可选，筛选特定服务器的工具)
+- **📥 响应**: 返回所有可用的MCP工具信息，包含服务器分布情况
 
-#### 3. 💚 健康检查
+#### 3. 🌐 获取服务器列表
+- **📍 路径**: `GET /servers`
+- **🔐 认证**: 必需
+- **📥 响应**: 返回所有MCP服务器状态和连接信息
+
+#### 4. 💚 健康检查
 - **📍 路径**: `GET /health`
 - **🔐 认证**: 不需要
-- **📥 响应**: 服务状态和MCP连接信息
+- **📥 响应**: 服务状态和所有MCP服务器连接信息
 
 ## 🎫 JWT令牌要求
 
@@ -197,7 +234,7 @@ docker run -d \
   --name mcp-proxy \
   -p 5000:5000 \
   -e JWT_SECRET=your-secret-key \
-  -e MCP_URL=http://your-mcp-server:3000/sse \
+  -e MCP_URLS=http://server1:8999/sse,http://server2:8005/sse \
   mcp-proxy:pip
 ```
 
@@ -207,7 +244,7 @@ docker run -d \
   --name mcp-proxy \
   -p 5000:5000 \
   -e JWT_SECRET=your-secret-key \
-  -e MCP_URL=http://your-mcp-server:3000/sse \
+  -e MCP_URLS=http://server1:8999/sse,http://server2:8005/sse \
   mcp-proxy:uv
 ```
 
@@ -256,7 +293,8 @@ docker-compose down
 
 #### 🧠 核心层 (core/)
 - **🔐 auth.py**: JWT认证逻辑，包含强制exp验证
-- **🤝 mcp_client.py**: MCP客户端封装和连接管理
+- **🤝 mcp_client.py**: 单个MCP客户端封装和连接管理
+- **🌐 mcp_client_manager.py**: 多MCP服务器管理器，支持负载均衡和故障转移
 
 #### 🌐 API层 (api/)
 - **🛤️ routes.py**: API路由和请求处理

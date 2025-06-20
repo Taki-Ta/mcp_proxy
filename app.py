@@ -5,17 +5,17 @@ import asyncio
 import logging
 
 from quart import Quart, jsonify
-from config import PORT, DEBUG, LOG_LEVEL, MCP_URL, KEEPALIVE_INTERVAL
+from config import PORT, DEBUG, LOG_LEVEL, MCP_URLS, KEEPALIVE_INTERVAL
 from utils.exceptions import APIError
-from core.mcp_client import MCPClient
-from api.routes import api_bp, set_mcp_client
+from core.mcp_client_manager import MCPClientManager
+from api.routes import api_bp, set_mcp_client_manager
 
 # 配置日志
 logging.basicConfig(level=getattr(logging, LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
-# 全局MCP客户端
-mcp_client = None
+# 全局MCP客户端管理器
+mcp_client_manager = None
 # 保活任务
 keepalive_task = None
 
@@ -54,48 +54,49 @@ def create_app():
     @app.before_serving
     async def startup():
         """应用启动前的初始化"""
-        await init_mcp_client()
+        await init_mcp_client_manager()
 
     @app.after_serving
     async def shutdown():
         """应用关闭时的清理"""
-        await cleanup_mcp_client()
+        await cleanup_mcp_client_manager()
     
     return app
 
-async def init_mcp_client():
-    """初始化MCP客户端"""
-    global mcp_client, keepalive_task
+async def init_mcp_client_manager():
+    """初始化MCP客户端管理器"""
+    global mcp_client_manager, keepalive_task
     try:
-        mcp_client = MCPClient(MCP_URL)
-        await mcp_client.connect()
-        # 设置路由模块中的客户端引用
-        set_mcp_client(mcp_client)
+        logger.info(f"初始化MCP客户端管理器，配置的服务器: {MCP_URLS}")
+        mcp_client_manager = MCPClientManager(MCP_URLS)
+        await mcp_client_manager.connect_all()
+        
+        # 设置路由模块中的客户端管理器引用
+        set_mcp_client_manager(mcp_client_manager)
         
         # 启动保活任务
         keepalive_task = asyncio.create_task(keepalive_loop())
-        logger.info("MCP客户端初始化成功，保活任务已启动")
+        logger.info(f"MCP客户端管理器初始化成功，已连接 {mcp_client_manager.connected_servers_count} 个服务器，保活任务已启动")
     except Exception as e:
-        logger.error(f"MCP客户端初始化失败: {str(e)}")
+        logger.error(f"MCP客户端管理器初始化失败: {str(e)}")
         raise
 
 async def keepalive_loop():
     """MCP连接保活循环"""
-    global mcp_client
+    global mcp_client_manager
     while True:
         try:
             # 根据配置的间隔检查连接状态
             await asyncio.sleep(KEEPALIVE_INTERVAL)
             
-            if mcp_client:
+            if mcp_client_manager:
                 logger.debug("执行MCP连接保活检查...")
                 try:
-                    # 尝试获取工具列表来保持连接活跃
-                    await mcp_client._check_connection_health()
-                    logger.debug("MCP连接保活检查完成")
+                    # 确保所有连接都健康
+                    await mcp_client_manager._ensure_all_connected()
+                    logger.debug(f"MCP连接保活检查完成，当前连接服务器数: {mcp_client_manager.connected_servers_count}")
                 except Exception as e:
-                    logger.warning(f"保活检查失败，连接可能已断开: {str(e)}")
-                    # 连接检查失败时，下次调用会自动重连
+                    logger.warning(f"保活检查失败: {str(e)}")
             
         except asyncio.CancelledError:
             logger.info("保活任务被取消")
@@ -103,9 +104,9 @@ async def keepalive_loop():
         except Exception as e:
             logger.error(f"保活循环出错: {str(e)}")
 
-async def cleanup_mcp_client():
-    """清理MCP客户端"""
-    global mcp_client, keepalive_task
+async def cleanup_mcp_client_manager():
+    """清理MCP客户端管理器"""
+    global mcp_client_manager, keepalive_task
     
     # 停止保活任务
     if keepalive_task and not keepalive_task.done():
@@ -116,19 +117,20 @@ async def cleanup_mcp_client():
             pass
         logger.info("保活任务已停止")
     
-    if mcp_client:
+    if mcp_client_manager:
         try:
-            await mcp_client.cleanup()
-            logger.info("MCP客户端已清理")
+            await mcp_client_manager.cleanup()
+            logger.info("MCP客户端管理器已清理")
         except Exception as e:
-            logger.error(f"清理MCP客户端时出错: {str(e)}")
+            logger.error(f"清理MCP客户端管理器时出错: {str(e)}")
         finally:
-            mcp_client = None
+            mcp_client_manager = None
 
 def main():
     """主函数"""
     app = create_app()
     logger.info(f"启动MCP Proxy API服务器，端口: {PORT}")
+    logger.info(f"配置的MCP服务器: {MCP_URLS}")
     app.run(host='0.0.0.0', port=PORT, debug=DEBUG)
 
 if __name__ == "__main__":
